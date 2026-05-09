@@ -14,64 +14,80 @@
     paddle_old_x DW         125
     paddle_speed DW         14                                                                                        ; paddle speed variation                                                                              ; Previous paddle X for clearing
 
-                 font_table LABEL BYTE
-                 DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b    ; space 0
-                 DB         00110000b, 01111000b, 11001100b, 11001100b, 11111100b, 11001100b, 11001100b, 00000000b    ; A 1
-                 DB         11111100b, 11000110b, 11000110b, 11111100b, 11000110b, 11000110b, 11111100b, 00000000b    ; B 2
-                 DB         01111000b, 11001100b, 11000000b, 11000000b, 11000000b, 11001100b, 01111000b, 00000000b    ; C 3
-                 DB         11111000b, 11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 11111000b, 00000000b    ; D 4
-                 DB         11111100b, 11000000b, 11111000b, 11000000b, 11000000b, 11000000b, 11111100b, 00000000b    ; E 5
-                 DB         11111100b, 11000000b, 11111000b, 11000000b, 11000000b, 11000000b, 11000000b, 00000000b    ; F 6
-                 DB         01111000b, 11001100b, 11000000b, 11011100b, 11001100b, 11001100b, 01111000b, 00000000b    ; G 7
-                 DB         11001100b, 11001100b, 11111100b, 11001100b, 11001100b, 11001100b, 11001100b, 00000000b    ; H 8
-                 DB         11111100b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 11111100b, 00000000b    ; I 9
-                 DB         00111100b, 00011000b, 00011000b, 00011000b, 11011000b, 11011000b, 01110000b, 00000000b    ; J 10
-                 DB         11001100b, 11011000b, 11110000b, 11100000b, 11110000b, 11011000b, 11001100b, 00000000b    ; K 11
-                 DB         11000000b, 11000000b, 11000000b, 11000000b, 11000000b, 11000000b, 11111100b, 00000000b    ; L 12
-                 DB         11000110b, 11101110b, 11111110b, 11010110b, 11000110b, 11000110b, 11000110b, 00000000b    ; M 13
-                 DB         11001100b, 11101100b, 11111100b, 11011100b, 11001100b, 11001100b, 11001100b, 00000000b    ; N 14
-                 DB         01111000b, 11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 01111000b, 00000000b    ; O 15
-                 DB         11111100b, 11001100b, 11001100b, 11111100b, 11000000b, 11000000b, 11000000b, 00000000b    ; P 16
-                 DB         01111000b, 11001100b, 11001100b, 11001100b, 11011100b, 11001100b, 01111010b, 00000000b    ; Q 17
-                 DB         11111100b, 11001100b, 11001100b, 11111100b, 11011000b, 11001100b, 11001100b, 00000000b    ; R 18
-                 DB         01111000b, 11001100b, 11000000b, 01111000b, 00001100b, 11001100b, 01111000b, 00000000b    ; S 19
-                 DB         11111100b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00000000b    ; T 20
-                 DB         11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 01111000b, 00000000b    ; U 21
-                 DB         11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 01111000b, 00110000b, 00000000b    ; V 22
-                 DB         11000110b, 11000110b, 11010110b, 11010110b, 11111110b, 11101110b, 11000110b, 00000000b    ; W 23
-                 DB         11001100b, 11001100b, 01111000b, 00110000b, 01111000b, 11001100b, 11001100b, 00000000b    ; X 24
-                 DB         11001100b, 11001100b, 11001100b, 01111000b, 00110000b, 00110000b, 00110000b, 00000000b    ; Y 25
-                 DB         11111100b, 00001100b, 00011000b, 00110000b, 01100000b, 11000000b, 11111100b, 00000000b    ; Z 26
-                 DB         00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00000000b    ; | 27
-                 DB         00000000b, 00000000b, 00000000b, 11111100b, 00000000b, 00000000b, 00000000b, 00000000b    ; - 28
-                 DB         00000000b, 01100000b, 00110000b, 00011000b, 00110000b, 01100000b, 00000000b, 00000000b    ; > 29
-                 DB         00000000b, 00000000b, 00110000b, 00000000b, 00110000b, 00000000b, 00000000b, 00000000b    ; : 30
-                 DB         00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00000000b, 00110000b, 00000000b    ; ! 31
-                 DB         00110000b, 01110000b, 00110000b, 00110000b, 00110000b, 00110000b, 11111100b, 00000000b    ; 1 32
-                 DB         01111000b, 11001100b, 00001100b, 00111000b, 01100000b, 11000000b, 11111100b, 00000000b    ; 2 33
-                 DB         01111000b, 11001100b, 00001100b, 00111000b, 00001100b, 11001100b, 01111000b, 00000000b    ; 3 34
-                 DB         00011000b, 00111000b, 01011000b, 10011000b, 11111100b, 00011000b, 00011000b, 00000000b    ; 4 35
-                 DB         11111100b, 11000000b, 11111000b, 00001100b, 00001100b, 11001100b, 01111000b, 00000000b    ; 5 36
-                 DB         00000000b, 00000110b, 00001100b, 00011000b, 00110000b, 01100000b, 00000000b, 00000000b    ; / 37
-                 DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00110000b, 00110000b, 00000000b    ; . 38
-                 DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 11111100b, 00000000b    ; _ 39
-                 DB         01111000b, 11001100b, 11011100b, 11101100b, 11001100b, 11001100b, 01111000b, 00000000b    ; 0 40
-                 DB         00111000b, 01100000b, 11000000b, 11111000b, 11001100b, 11001100b, 01111000b, 00000000b    ; 6 41
-                 DB         11111100b, 00001100b, 00011000b, 00110000b, 01100000b, 01100000b, 01100000b, 00000000b    ; 7 42
-                 DB         01111000b, 11001100b, 11001100b, 01111000b, 11001100b, 11001100b, 01111000b, 00000000b    ; 8 43
-                 DB         01111000b, 11001100b, 11001100b, 01111100b, 00001100b, 00011000b, 01110000b, 00000000b    ; 9 44
-                 DB         01100110b, 11111111b, 11111111b, 11111111b, 01111110b, 00111100b, 00011000b, 00000000b    ; heart 45
+    ; Ball variables
+    ball_x       DW         155                                                                                       ; Ball X position
+    ball_y       DW         170                                                                                       ; Ball Y position
+    ball_dx      DW         1                                                                                         ; Ball X direction (+1 or -1)
+    ball_dy      DW         -1                                                                                        ; Ball Y direction (+1 or -1)
+    ball_speed   DW         6                                                                                         ; Ball speed delay multiplier (higher = slower)
+    ball_launched DB        0                                                                                         ; 0 = waiting for SPACE, 1 = moving
+
+    ; Brick state: 5 rows x 15 cols, 1 = alive 0 = dead
+    brick_state  DB         75 DUP(1)
+
+    lives_count DW         3
+
+
+    font_table LABEL BYTE
+        DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b    ; space 0
+        DB         00110000b, 01111000b, 11001100b, 11001100b, 11111100b, 11001100b, 11001100b, 00000000b    ; A 1
+        DB         11111100b, 11000110b, 11000110b, 11111100b, 11000110b, 11000110b, 11111100b, 00000000b    ; B 2
+        DB         01111000b, 11001100b, 11000000b, 11000000b, 11000000b, 11001100b, 01111000b, 00000000b    ; C 3
+        DB         11111000b, 11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 11111000b, 00000000b    ; D 4
+        DB         11111100b, 11000000b, 11111000b, 11000000b, 11000000b, 11000000b, 11111100b, 00000000b    ; E 5
+        DB         11111100b, 11000000b, 11111000b, 11000000b, 11000000b, 11000000b, 11000000b, 00000000b    ; F 6
+        DB         01111000b, 11001100b, 11000000b, 11011100b, 11001100b, 11001100b, 01111000b, 00000000b    ; G 7
+        DB         11001100b, 11001100b, 11111100b, 11001100b, 11001100b, 11001100b, 11001100b, 00000000b    ; H 8
+        DB         11111100b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 11111100b, 00000000b    ; I 9
+        DB         00111100b, 00011000b, 00011000b, 00011000b, 11011000b, 11011000b, 01110000b, 00000000b    ; J 10
+        DB         11001100b, 11011000b, 11110000b, 11100000b, 11110000b, 11011000b, 11001100b, 00000000b    ; K 11
+        DB         11000000b, 11000000b, 11000000b, 11000000b, 11000000b, 11000000b, 11111100b, 00000000b    ; L 12
+        DB         11000110b, 11101110b, 11111110b, 11010110b, 11000110b, 11000110b, 11000110b, 00000000b    ; M 13
+        DB         11001100b, 11101100b, 11111100b, 11011100b, 11001100b, 11001100b, 11001100b, 00000000b    ; N 14
+        DB         01111000b, 11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 01111000b, 00000000b    ; O 15
+        DB         11111100b, 11001100b, 11001100b, 11111100b, 11000000b, 11000000b, 11000000b, 00000000b    ; P 16
+        DB         01111000b, 11001100b, 11001100b, 11001100b, 11011100b, 11001100b, 01111010b, 00000000b    ; Q 17
+        DB         11111100b, 11001100b, 11001100b, 11111100b, 11011000b, 11001100b, 11001100b, 00000000b    ; R 18
+        DB         01111000b, 11001100b, 11000000b, 01111000b, 00001100b, 11001100b, 01111000b, 00000000b    ; S 19
+        DB         11111100b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00000000b    ; T 20
+        DB         11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 01111000b, 00000000b    ; U 21
+        DB         11001100b, 11001100b, 11001100b, 11001100b, 11001100b, 01111000b, 00110000b, 00000000b    ; V 22
+        DB         11000110b, 11000110b, 11010110b, 11010110b, 11111110b, 11101110b, 11000110b, 00000000b    ; W 23
+        DB         11001100b, 11001100b, 01111000b, 00110000b, 01111000b, 11001100b, 11001100b, 00000000b    ; X 24
+        DB         11001100b, 11001100b, 11001100b, 01111000b, 00110000b, 00110000b, 00110000b, 00000000b    ; Y 25
+        DB         11111100b, 00001100b, 00011000b, 00110000b, 01100000b, 11000000b, 11111100b, 00000000b    ; Z 26
+        DB         00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00000000b    ; | 27
+        DB         00000000b, 00000000b, 00000000b, 11111100b, 00000000b, 00000000b, 00000000b, 00000000b    ; - 28
+        DB         00000000b, 01100000b, 00110000b, 00011000b, 00110000b, 01100000b, 00000000b, 00000000b    ; > 29
+        DB         00000000b, 00000000b, 00110000b, 00000000b, 00110000b, 00000000b, 00000000b, 00000000b    ; : 30
+        DB         00110000b, 00110000b, 00110000b, 00110000b, 00110000b, 00000000b, 00110000b, 00000000b    ; ! 31
+        DB         00110000b, 01110000b, 00110000b, 00110000b, 00110000b, 00110000b, 11111100b, 00000000b    ; 1 32
+        DB         01111000b, 11001100b, 00001100b, 00111000b, 01100000b, 11000000b, 11111100b, 00000000b    ; 2 33
+        DB         01111000b, 11001100b, 00001100b, 00111000b, 00001100b, 11001100b, 01111000b, 00000000b    ; 3 34
+        DB         00011000b, 00111000b, 01011000b, 10011000b, 11111100b, 00011000b, 00011000b, 00000000b    ; 4 35
+        DB         11111100b, 11000000b, 11111000b, 00001100b, 00001100b, 11001100b, 01111000b, 00000000b    ; 5 36
+        DB         00000000b, 00000110b, 00001100b, 00011000b, 00110000b, 01100000b, 00000000b, 00000000b    ; / 37
+        DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00110000b, 00110000b, 00000000b    ; . 38
+        DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 11111100b, 00000000b    ; _ 39
+        DB         01111000b, 11001100b, 11011100b, 11101100b, 11001100b, 11001100b, 01111000b, 00000000b    ; 0 40
+        DB         00111000b, 01100000b, 11000000b, 11111000b, 11001100b, 11001100b, 01111000b, 00000000b    ; 6 41
+        DB         11111100b, 00001100b, 00011000b, 00110000b, 01100000b, 01100000b, 01100000b, 00000000b    ; 7 42
+        DB         01111000b, 11001100b, 11001100b, 01111000b, 11001100b, 11001100b, 01111000b, 00000000b    ; 8 43
+        DB         01111000b, 11001100b, 11001100b, 01111100b, 00001100b, 00011000b, 01110000b, 00000000b    ; 9 44
+        DB         01100110b, 11111111b, 11111111b, 11111111b, 01111110b, 00111100b, 00011000b, 00000000b    ; heart 45
 
     title_br     DB         'BRICK BREAKERS', 0
     prompt_msg   DB         'press any key to continue', 0
     team_names   DB         ' Ermish  Sawaira  Ahmed  Hanzala | SE-C', 0
 
+    ; name input screen variables
     name_label   DB         'Enter Your Name:', 0
     name_buf     DB         21 DUP(0)
     name_len     DW         0
     instr_msg    DB         'enter to continue | backspace to remove', 0
     name_stored  DB         21 DUP(0)
 
+    ; menu screen variables
     menu_title   DB         'MAIN MENU', 0
     opt1_txt     DB         '1 - START GAME', 0
     opt2_txt     DB         '2 - INSTRUCTIONS', 0
@@ -85,6 +101,7 @@
     ball_mdx     DW         0
     ball_mdy     DW         -1
 
+    ; instruction screen variables
     instr_title  DB         'HOW TO PLAY', 0
     page1_txt    DB         '(1/2)', 0
     page2_txt    DB         '(2/2)', 0
@@ -122,6 +139,7 @@
     bonus_note   DB         'Only one bonus active at a time', 0
     return_msg   DB         'Press any key or ESC to return', 0
 
+    ; high score screen variables
     hs_title     DB         'HIGH SCORES', 0
     hs_hdr       DB         '  NAME          SCORE    RANK', 0
     hs1_name     DB         'AHSAN', 0
@@ -140,24 +158,14 @@
     hs5_score    DB         '6000', 0
     hs5_rank     DB         '5', 0
 
+    ; game screen variables
     gs_score     DB         'SCORE: 1200', 0
     gs_lives     DB         'LIVES:', 0
     gs_level     DB         'LEVEL: 01', 0
     gs_player    DB         'PLAYER:', 0
     gs_name      DB         21 DUP(0)
 
-    ; Ball variables
-    ball_x       DW         155                                                                                       ; Ball X position
-    ball_y       DW         170                                                                                       ; Ball Y position
-    ball_dx      DW         1                                                                                         ; Ball X direction (+1 or -1)
-    ball_dy      DW         -1                                                                                        ; Ball Y direction (+1 or -1)
-    ball_speed   DW         6                                                                                         ; Ball speed delay multiplier (higher = slower)
-    ball_launched DB        0                                                                                         ; 0 = waiting for SPACE, 1 = moving
 
-    
-
-    ; Brick state: 5 rows x 15 cols, 1=alive 0=dead
-    brick_state  DB         75 DUP(1)
 
     ; Game state for paddle demo
     game_running DB         0
@@ -444,35 +452,57 @@ GameScreenLayout PROC
     mov   dx, 4
     mov   si, OFFSET gs_score
     call  DrawString
+
+    ; write "Lives : "
     mov   ch, 0Fh
     mov   bx, 14*8
     mov   dx, 4
     mov   si, OFFSET gs_lives
     call  DrawString
-    mov   ch, 0Ch
-    mov   bx, 20*8
-    mov   dx, 4
-    mov   al, 3
-    call  DrawChar
-    mov   bx, 21*8
-    call  DrawChar
-    mov   bx, 22*8
-    call  DrawChar
-    mov   ch, 0Fh
-    mov   bx, 25*8
-    mov   dx, 4
-    mov   si, OFFSET gs_level
-    call  DrawString
-    mov   ch, 0Fh
-    mov   bx, 20*8
-    mov   dx, 17
-    mov   si, OFFSET gs_player
-    call  DrawString
-    mov   ch, 0Fh
-    mov   bx, 28*8
-    mov   dx, 17
-    mov   si, OFFSET gs_name
-    call  DrawString
+
+    ; drawing heart icons for lives
+    mov cx, 0
+    mov cx, lives_count
+    cmp cx, 0
+    jle gs_no_lives
+
+    mov   bx, 20*8     ; Initial X
+    mov   dx, 4        ; Initial Y
+    mov   al, 3        ; Heart Icon
+
+    gs_heart_loop:
+        push  ax           
+        push  bx           
+        push  cx           
+        push  dx           
+        
+        mov   ch, 0Ch      ; Set color to Red right before drawing
+        call  DrawChar
+        
+        pop   dx           
+        pop   cx           
+        pop   bx           
+        pop   ax           
+
+        add   bx, 8        
+        loop  gs_heart_loop
+
+    gs_no_lives: ; skip drawing hearts and continue drawing other stuff
+        mov   ch, 0Fh
+        mov   bx, 25*8
+        mov   dx, 4
+        mov   si, OFFSET gs_level
+        call  DrawString
+        mov   ch, 0Fh
+        mov   bx, 20*8
+        mov   dx, 17
+        mov   si, OFFSET gs_player
+        call  DrawString
+        mov   ch, 0Fh
+        mov   bx, 28*8
+        mov   dx, 17
+        mov   si, OFFSET gs_name
+        call  DrawString
 
     ; Draw bricks
     mov   dx, 48
@@ -499,7 +529,7 @@ GameScreenLayout PROC
         mov   al, 01h
         jmp   gsc_draw
     gsc_dmag:
-    mov   al, 05h   
+        mov   al, 05h   
     gsc_draw:
         mov   si, 18
         mov   di, 8
@@ -551,7 +581,14 @@ GameScreenLayout PROC
         jnz   gs_key_up
 
         cmp   al, 01h                      ; ESC scancode
-        je    gs_exit
+
+        jg gs_dont_exit
+        jl gs_dont_exit
+        
+        jmp    gs_exit
+
+    gs_dont_exit:
+
 
         cmp   al, 39h                      ; SPACE scancode
         je    gs_space
@@ -643,7 +680,7 @@ GameScreenLayout PROC
         jmp   gs_game_loop
 
     gs_exit:
-                        ret
+        ret
 GameScreenLayout ENDP
 
 ;----------------------------------------------------------------------
@@ -652,80 +689,163 @@ GameScreenLayout ENDP
 ; paddle top = paddle_y. Ball lost if it goes below paddle.
 ;----------------------------------------------------------------------
 MoveBall PROC
-        push  ax
-        push  bx
-        push  cx
-        push  dx
-        push  si
-        push  di
+    ; preserving all the register by pushing them before usage
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
 
-        ; Erase ball
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 00h
-        call  FillRect
+    ; erase ball
+    mov   bx, ball_x
+    mov   dx, ball_y
+    mov   si, 6
+    mov   di, 6
+    mov   al, 00h
+    call  FillRect
 
-        ; Next position
-        mov   ax, ball_x
-        add   ax, ball_dx
-        mov   bx, ax                       ; bx = new x
+    ; next position
+    ; updating x position
+    mov   ax, ball_x
+    add   ax, ball_dx
+    mov   bx, ax                       
 
-        mov   ax, ball_y
-        add   ax, ball_dy
-        mov   dx, ax                       ; dx = new y
+    ; updating y position
+    mov   ax, ball_y
+    add   ax, ball_dy
+    mov   dx, ax                       
 
-        ; Left wall
-        cmp   bx, 2
-        jge   mb_right
-        neg   ball_dx
-        mov   bx, 2
-    mb_right:
+    ; Left wall
+    cmp   bx, 2
+    jge   mb_rightCollision
+    neg   ball_dx
+    mov   bx, 2
+
+    mb_rightCollision:
         ; Right wall (right edge = bx+5, must stay <= 317)
         mov   ax, bx
         add   ax, 5
         cmp   ax, 317
-        jle   mb_top
+        jle   mb_topCollision
         neg   ball_dx
         mov   bx, 311
-    mb_top:
-                        ; Top boundary = bottom of brick area = y 103
-                        cmp   dx, 103
-                        jge   mb_paddle
-                        neg   ball_dy
-                        mov   dx, 103
-    mb_paddle:
+
+    mb_topCollision:
+        ; checking if the ball is in the brick zone (Y between 48 and 103)
+        cmp   dx, 48
+        jl    mb_topWallCollision      ; If above bricks, check top wall collision
+        cmp   dx, 103
+        jge   mb_paddleCollision        ; If below bricks, proceed to paddle check
+
+        ; --- BRICK COLLISION LOGIC ---
+        ; Calculate Row: (ball_y - 48) / 11 
+        mov   ax, dx
+        sub   ax, 48
+        mov   cl, 11
+        div   cl
+        mov   ch, al           ; ch = row index (0-4)
+
+        ; Calculate Column: (ball_x - 10) / 20
+        mov   ax, bx
+        sub   ax, 10
+        js    mb_paddleCollision        ; Safety: if X < 10, no brick hit
+        mov   cl, 20
+        div   cl
+        mov   cl, al           ; cl = col index (0-14)
+        cmp   cl, 15
+        jge   mb_paddleCollision        ; Safety: if X out of bounds
+
+        ; Calculate Index in brick_state: (row * 15) + col
+        mov   al, ch
+        mov   ah, 15
+        mul   ah
+        add   al, cl
+        mov   si, ax           ; si = index in brick_state
+        
+        ; Check if brick is alive
+        cmp   brick_state[si], 1
+        jne   mb_paddleCollision        ; If 0, it's already broken
+
+        ; --- BREAK THE BRICK ---
+        mov   brick_state[si], 0 ; Mark as dead
+        
+        ; Erase brick from screen (Calculate screen coordinates)
+        push  bx
+        push  dx
+        ; X = (col * 20) + 10
+        mov   al, cl
+        mov   ah, 20
+        mul   ah
+        add   ax, 10
+        mov   bx, ax           ; bx = brick screen X
+        ; Y = (row * 11) + 48
+        mov   al, ch
+        mov   ah, 11
+        mul   ah
+        add   ax, 48
+        mov   dx, ax           ; dx = brick screen Y
+        
+        mov   si, 18           ; Brick width
+        mov   di, 8            ; Brick height
+        mov   al, 00h          ; Background color
+        call  FillRect
+        pop   dx
+        pop   bx
+
+        neg   ball_dy          ; Reverse ball direction
+        jmp   mb_draw
+
+    mb_topWallCollision:
+        ; Original top wall collision (Y=15 is HUD boundary)
+        cmp   dx, 30           ; Adjusted for your status bar height
+        jge   mb_paddleCollision
+        neg   ball_dy
+        mov   dx, 30
+
+    mb_paddleCollision:
         ; Paddle: only when moving down
         cmp   ball_dy, 0
-        jl    mb_bottom
+        jl    mb_bottomCollision
         ; ball bottom = dx+5 must reach paddle_y
         mov   ax, dx
         add   ax, 5
         cmp   ax, paddle_y
-        jl    mb_bottom
+        jl    mb_bottomCollision
         ; ball top must not be below paddle
         cmp   dx, paddle_y
-        jg    mb_bottom
+        jg    mb_bottomCollision
         ; horizontal overlap: ball_x in [paddle_x .. paddle_x+width)
         mov   cx, paddle_x
         cmp   bx, cx
-        jl    mb_bottom
+        jl    mb_bottomCollision
         add   cx, paddle_width
         cmp   bx, cx
-        jge   mb_bottom
+        jge   mb_bottomCollision
         ; hit
         neg   ball_dy
         mov   dx, paddle_y
         sub   dx, 6
         jmp   mb_draw
-    mb_bottom:
-        ; Ball lost — fell below screen
+
+    mb_bottomCollision:
         mov   ax, dx
         add   ax, 5
         cmp   ax, 199
-        jle   mb_draw
-        ; Reset ball to paddle
+        jle   mb_draw ; meaning the ball is not yet lost
+
+        ; if this runs, then ball is lost        
+
+        ; decrement lives and check if remaining lives is 0, then end game
+        dec lives_count
+        call UpdateLivesDisplay
+
+        cmp lives_count, 0
+        jg mb_skip_exit
+        jmp  gs_exit ; originally it should jump to a game over screen, but that is not yet implemented, so we just exit to main menu
+
+    mb_skip_exit:
+        ; this means player still has lives left, so we reset the ball and decremenet the life count display
         mov   ball_launched, 0
         mov   ax, paddle_x
         add   ax, 32
@@ -740,6 +860,7 @@ MoveBall PROC
         mov   al, 0Fh
         call  FillRect
         jmp   mb_done
+
     mb_draw:
         mov   ball_x, bx
         mov   ball_y, dx
@@ -749,6 +870,7 @@ MoveBall PROC
         mov   di, 6
         mov   al, 0Fh
         call  FillRect
+
     mb_done:
         pop   di
         pop   si
@@ -758,6 +880,7 @@ MoveBall PROC
         pop   ax
         ret
 MoveBall ENDP
+
 ;----------------------------------------------------------------------
 ; DRAW PADDLE
 ;----------------------------------------------------------------------
@@ -1149,7 +1272,10 @@ InstructionsScreen PROC
         cmp   al, 13
         je    ins_page2
         cmp   al, 27
-        je    ins_exit
+        jg ins_dont_exit
+        jl ins_dont_exit
+        jmp    ins_exit
+    ins_dont_exit:
         jmp   ins_p1_wait
     ins_page2:
         mov   al, 00h
@@ -1317,7 +1443,12 @@ InstructionsScreen PROC
         cmp   al, 27
         je    ins_exit
         cmp   al, 13
-        je    ins_page1
+
+        jg ins_dont_page1
+        jl ins_dont_page1
+        jmp    ins_page1
+
+    ins_dont_page1:
         jmp   ins_p2_wait
     ins_exit:
         ret
@@ -1652,7 +1783,10 @@ DrawBricks ENDP
 
 CharToIndex PROC
     cmp   al, 3
-    je    cti_heart
+    jg   cti_not_ctrl
+    jl   cti_not_ctrl
+    jmp    cti_heart
+    cti_not_ctrl:
     cmp   al, ' '
     je    cti_space
     cmp   al, '|'
@@ -1853,5 +1987,44 @@ SmallDelay PROC
         pop   cx
         ret
 SmallDelay ENDP
+
+UpdateLivesDisplay PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+
+    ; we will first clear the heart area with background color and then draw hearts on it again
+    mov   bx, 20*8
+    mov   dx, 4
+    mov   si, 40       ; Width to cover 5 potential hearts
+    mov   di, 8        ; Height
+    mov   al, 05h      ; Black
+    call  FillRect
+
+    ; drawing hearts
+    mov   cx, lives_count
+    cmp   cx, 0
+    jle   uld_done
+
+    mov   bx, 20*8     ; reset X to start position
+    mov   dx, 4
+    mov   al, 3        ; heart Icon
+
+    uld_loop:
+        push  cx
+        mov   ch, 0Ch      ; red, heart color
+        call  DrawChar
+        pop   cx
+        add   bx, 8
+        loop  uld_loop
+
+    uld_done:
+        pop   dx
+        pop   cx
+        pop   bx
+        pop   ax
+        ret
+UpdateLivesDisplay ENDP
 
 END main
