@@ -8,26 +8,25 @@
 
 .DATA
     char_color   DB         0
-    paddle_x     DW         125                                                                                       ; Paddle X position
-    paddle_y     DW         185                                                                                       ; Paddle Y position
-    paddle_width DW         70                                                                                        ; Paddle width
+    paddle_x     DW         125
+    paddle_y     DW         185
+    paddle_width DW         70
     paddle_old_x DW         125
-    paddle_speed DW         14                                                                                        ; paddle speed variation                                                                              ; Previous paddle X for clearing
+    paddle_speed DW         14
 
     ; Ball variables
-    ball_x       DW         155                                                                                       ; Ball X position
-    ball_y       DW         170                                                                                       ; Ball Y position
-    ball_dx      DW         1                                                                                         ; Ball X direction (+1 or -1)
-    ball_dy      DW         -1                                                                                        ; Ball Y direction (+1 or -1)
-    ball_speed   DW         6                                                                                         ; Ball speed delay multiplier (higher = slower)
-    ball_launched DB        0                                                                                         ; 0 = waiting for SPACE, 1 = moving
+    ball_x       DW         155
+    ball_y       DW         170
+    ball_dx      DW         1
+    ball_dy      DW         -1
+    ball_speed   DW         6
+    ball_launched DB        0
 
     ; Brick state: 5 rows x 15 cols, 1 = alive 0 = dead
     brick_state  DB         75 DUP(1)
 
     lives_count DW         3
     score       DW         0
-
 
     font_table LABEL BYTE
         DB         00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b, 00000000b    ; space 0
@@ -76,6 +75,8 @@
         DB         01111000b, 11001100b, 11001100b, 01111000b, 11001100b, 11001100b, 01111000b, 00000000b    ; 8 43
         DB         01111000b, 11001100b, 11001100b, 01111100b, 00001100b, 00011000b, 01110000b, 00000000b    ; 9 44
         DB         01100110b, 11111111b, 11111111b, 11111111b, 01111110b, 00111100b, 00011000b, 00000000b    ; heart 45
+        DB         00000000b, 00010000b, 00111000b, 01111100b, 00111000b, 00010000b, 00000000b, 00000000b    ; diamond 46
+        DB         00111100b, 01111110b, 11111111b, 11111111b, 11111111b, 01111110b, 00111100b, 00000000b    ; circle 47
 
     title_br     DB         'BRICK BREAKERS', 0
     prompt_msg   DB         'press any key to continue', 0
@@ -168,9 +169,17 @@
 
 
 
-    ; Game state for paddle demo
+           ; Game Over screen variables
+    go_title_str DB         'G A M E   O V E R', 0
+    go_score_lbl DB         'Final Score   : ', 0
+    go_level_lbl DB         'Level Reached : ', 0
+    go_bricks_lbl DB        'Bricks Left   : ', 0
+    go_lives_lbl DB         'Lives Remaining : ', 0
+    go_opt1      DB         '[ ENTER ]  Restart Game', 0
+    go_opt2      DB         '[ ESC ]    Main Menu', 0
+        ; Game state
     game_running DB         0
-
+    temp_str     DB         10 DUP(0)
 .CODE
 
 main PROC
@@ -188,6 +197,9 @@ main PROC
     int   21h
 main ENDP
 
+; ============================================================
+; HOME SCREEN
+; ============================================================
 HomeScreen PROC
     mov   al, 00h
     call  FillScreen
@@ -229,6 +241,9 @@ HomeScreen PROC
     ret
 HomeScreen ENDP
 
+; ============================================================
+; NAME INPUT SCREEN
+; ============================================================
 NameInputScreen PROC
     mov   al, 00h
     call  FillScreen
@@ -308,9 +323,15 @@ NameInputScreen PROC
         call  UpdateInputDisplay
         jmp   nis_loop
     nis_done:
+   
+        cmp   name_len, 0      ; Check if name is empty
+        je    nis_loop         ; If empty, go back to input loop
+        
         mov   cx, name_len
         cmp   cx, 0
         je    nis_empty
+     
+    
         mov   si, OFFSET name_buf
         mov   di, OFFSET name_stored
     nis_copy:
@@ -343,6 +364,9 @@ NameInputScreen PROC
         ret
 NameInputScreen ENDP
 
+; ============================================================
+; UPDATE INPUT DISPLAY
+; ============================================================
 UpdateInputDisplay PROC
     mov   bx, 81
     mov   dx, 119
@@ -358,6 +382,9 @@ UpdateInputDisplay PROC
     ret
 UpdateInputDisplay ENDP
 
+; ============================================================
+; MAIN MENU SCREEN
+; ============================================================
 MainMenuScreen PROC
     mov   ball_mx, 286
     mov   ball_my, 150
@@ -368,21 +395,18 @@ MainMenuScreen PROC
     call  DrawMainMenuStatic
     menu_loop:
         call  AnimateMenuBall
-
-        ; Check for keyboard input
         mov   ah, 01h
         int   16h
-        jz    menu_loop                    ; No key pressed, continue animation
-
+        jz    menu_loop
         mov   ah, 00h
         int   16h
-        cmp   ah, 48h                      ; Up arrow
+        cmp   ah, 48h
         je    menu_up
-        cmp   ah, 50h                      ; Down arrow
+        cmp   ah, 50h
         je    menu_down
-        cmp   al, 13                       ; Enter
+        cmp   al, 13
         je    menu_select
-        cmp   al, 27                       ; ESC
+        cmp   al, 27
         je    menu_exit
         jmp   menu_loop
     menu_up:
@@ -427,537 +451,9 @@ MainMenuScreen PROC
         ret
 MainMenuScreen ENDP
 
-;----------------------------------------------------------------------
-; GAME SCREEN WITH PADDLE MOVEMENT
-;----------------------------------------------------------------------
-GameScreenLayout PROC
-    ; Initialize paddle position
-    mov   paddle_x, 125
-    mov   paddle_old_x, 125
-
-    ; Draw game screen background
-    mov   al, 00h
-    call  FillScreen
-
-    ; Draw top status bar
-    mov   bx, 0
-    mov   dx, 0
-    mov   si, 320
-    mov   di, 28
-    mov   al, 05h
-    call  FillRect
-
-    ; Draw status text
-    mov   ch, 0Fh
-    mov   bx, 1*8
-    mov   dx, 4
-    mov   si, OFFSET gs_scoreDisplayStr
-    call  DrawString
-
-    ; write "Lives : "
-    mov   ch, 0Fh
-    mov   bx, 14*8
-    mov   dx, 4
-    mov   si, OFFSET gs_livesDisplayStr
-    call  DrawString
-
-    ; drawing heart icons for lives
-    mov cx, 0
-    mov cx, lives_count
-    cmp cx, 0
-    jle gs_no_lives
-
-    mov   bx, 20*8     ; Initial X
-    mov   dx, 4        ; Initial Y
-    mov   al, 3        ; Heart Icon
-
-    gs_heart_loop:
-        push  ax           
-        push  bx           
-        push  cx           
-        push  dx           
-        
-        mov   ch, 0Ch      ; Set color to Red right before drawing
-        call  DrawChar
-        
-        pop   dx           
-        pop   cx           
-        pop   bx           
-        pop   ax           
-
-        add   bx, 8        
-        loop  gs_heart_loop
-
-    gs_no_lives: ; skip drawing hearts and continue drawing other stuff
-        mov   ch, 0Fh
-        mov   bx, 25*8
-        mov   dx, 4
-        mov   si, OFFSET gs_levelDisplayStr
-        call  DrawString
-        mov   ch, 0Fh
-        mov   bx, 20*8
-        mov   dx, 17
-        mov   si, OFFSET gs_player
-        call  DrawString
-        mov   ch, 0Fh
-        mov   bx, 28*8
-        mov   dx, 17
-        mov   si, OFFSET gs_name
-        call  DrawString
-
-    ; Draw bricks
-    mov   dx, 48
-    mov   ch, 0
-    gs_rows:
-        mov   bx, 10
-        mov   cl, 0
-    gs_cols:
-        mov   al, ch
-        add   al, cl
-        and   al, 03h
-        cmp   al, 0
-        je    gsc_mag
-        cmp   al, 1
-        je    gsc_dblue
-        cmp   al, 2
-        je    gsc_dmag
-        mov   al, 03h
-        jmp   gsc_draw
-    gsc_mag:
-        mov   al, 0Dh
-        jmp   gsc_draw
-    gsc_dblue:
-        mov   al, 01h
-        jmp   gsc_draw
-    gsc_dmag:
-        mov   al, 05h   
-    gsc_draw:
-        mov   si, 18
-        mov   di, 8
-        call  FillRect
-        add   bx, 20
-        inc   cl
-        cmp   cl, 15
-        jl    gs_cols
-        add   dx, 11
-        inc   ch
-        cmp   ch, 5
-        jl    gs_rows
-
-        
-        ; Reset brick_state: all 75 bricks alive
-        mov   cx, 75
-        mov   si, OFFSET brick_state
-    gs_brick_reset:
-        mov   BYTE PTR [si], 1
-        inc   si
-        loop  gs_brick_reset
-
-        ; Initialize ball above paddle center
-        mov   ax, paddle_x
-        add   ax, 32
-        mov   ball_x, ax
-        mov   ball_y, 170
-        mov   ball_dx, 1
-        mov   ball_dy, -1
-        mov   ball_launched, 0
-
-        ; Draw initial ball and paddle
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 0Fh
-        call  FillRect
-        call  DrawPaddle
-
-    ; === MAIN GAME LOOP ===
-    ; Poll hardware keyboard port 60h every frame — no BIOS auto-repeat delay.
-    ; Scancode 39h=SPACE, 4Bh=Left, 4Dh=Right, 01h=ESC
-    gs_game_loop:
-        ; Read hardware key state from port 60h
-        in    al, 60h
-        ; High bit set means key released — ignore
-        test  al, 80h
-        jnz   gs_key_up
-
-        cmp   al, 01h                      ; ESC scancode
-
-        jg gs_dont_exit
-        jl gs_dont_exit
-        
-        jmp    gs_exit
-
-    gs_dont_exit:
-
-
-        cmp   al, 39h                      ; SPACE scancode
-        je    gs_space
-
-        cmp   al, 4Bh                      ; Left arrow scancode
-        je    gs_do_left
-        cmp   al, 1Eh                      ; A scancode
-        je    gs_do_left
-
-        cmp   al, 4Dh                      ; Right arrow scancode
-        je    gs_do_right
-        cmp   al, 20h                      ; D scancode
-        je    gs_do_right
-
-        jmp   gs_no_move
-
-    gs_key_up:
-        jmp   gs_no_move
-
-    gs_space:
-        cmp   ball_launched, 0
-        jne   gs_no_move
-        mov   ball_launched, 1
-        jmp   gs_no_move
-
-    gs_do_left:
-                        mov   bx, paddle_x
-        sub   bx, paddle_speed
-        cmp   bx, 2
-        jge   gs_apply_move
-        mov   bx, 2
-        jmp   gs_apply_move
-
-    gs_do_right:
-        mov   bx, paddle_x
-        add   bx, paddle_speed
-        mov   ax, 318
-        sub   ax, paddle_width
-        cmp   bx, ax
-        jle   gs_apply_move
-        mov   bx, ax
-
-    gs_apply_move:
-        cmp   bx, paddle_x
-        je    gs_no_move
-        call  ClearPaddle
-        ; If ball not launched, move it with paddle
-        cmp   ball_launched, 0
-        jne   gs_move_paddle_only
-        push  bx
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 00h
-        call  FillRect
-        pop   bx
-        mov   ax, bx
-        add   ax, 32
-        mov   ball_x, ax
-    gs_move_paddle_only:
-        mov   paddle_x, bx
-        call  DrawPaddle
-        cmp   ball_launched, 0
-        jne   gs_no_move
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 0Fh
-        call  FillRect
-
-    gs_no_move:
-        ; Move ball if launched
-        cmp   ball_launched, 0
-        je    gs_delay
-        call  MoveBall
-
-    gs_delay:
-        mov   cx, ball_speed
-    gs_delay_lp:
-        push  cx
-        mov   cx, 10000
-    gs_delay_in:
-        loop  gs_delay_in
-        pop   cx
-        loop  gs_delay_lp
-
-        jmp   gs_game_loop
-
-    gs_exit:
-        ret
-GameScreenLayout ENDP
-
-;----------------------------------------------------------------------
-; MOVE BALL: reflects off left/right walls, paddle.
-; Ball is 6x6. Boundaries: left=2, right=311, top=103 (below bricks),
-; paddle top = paddle_y. Ball lost if it goes below paddle.
-;----------------------------------------------------------------------
-MoveBall PROC
-    ; preserving all the register by pushing them before usage
-    push  ax
-    push  bx
-    push  cx
-    push  dx
-    push  si
-    push  di
-
-    ; erase ball
-    mov   bx, ball_x
-    mov   dx, ball_y
-    mov   si, 6
-    mov   di, 6
-    mov   al, 00h
-    call  FillRect
-
-    ; next position
-    ; updating x position
-    mov   ax, ball_x
-    add   ax, ball_dx
-    mov   bx, ax                       
-
-    ; updating y position
-    mov   ax, ball_y
-    add   ax, ball_dy
-    mov   dx, ax                       
-
-    ; Left wall
-    cmp   bx, 2
-    jge   mb_rightCollision
-    neg   ball_dx
-    mov   bx, 2
-
-    mb_rightCollision:
-        ; Right wall (right edge = bx+5, must stay <= 317)
-        mov   ax, bx
-        add   ax, 5
-        cmp   ax, 317
-        jle   mb_topCollision
-        neg   ball_dx
-        mov   bx, 311
-
-    mb_topCollision:
-        ; checking if the ball is in the brick zone (Y between 48 and 103)
-        cmp   dx, 48
-        jge mbh_no_topWallCollision
-        jmp    mb_topWallCollision      ; If above bricks, check top wall collision
-    
-    mbh_no_topWallCollision:
-        cmp   dx, 103
-        jl mb_no_paddleCollision
-        jmp   mb_paddleCollision        ; If below bricks, proceed to paddle check
-
-    mb_no_paddleCollision:
-        ; --- BRICK COLLISION LOGIC ---
-        ; Calculate Row: (ball_y - 48) / 11 
-        mov   ax, dx
-        sub   ax, 48
-        mov   cl, 11
-        div   cl
-        mov   ch, al           ; ch = row index (0-4)
-
-        ; Calculate Column: (ball_x - 10) / 20
-        mov   ax, bx
-        sub   ax, 10
-        jb    mb_paddleCollision         ; if X < 10, carry set = underflow, skip
-
-        mbh_no_paddleCollision:
-        mov   cl, 20
-        div   cl
-        mov   cl, al           ; cl = col index (0-14)
-        cmp   cl, 15
-        jl mb_no_paddleCollision2
-        jmp   mb_paddleCollision        ; Safety: if X out of bounds
-        mb_no_paddleCollision2:
-
-        ; Calculate Index in brick_state: (row * 15) + col
-        mov   al, ch
-        mov   ah, 15
-        mul   ah
-        add   al, cl
-        mov   si, ax           ; si = index in brick_state
-        
-        ; Check if brick is alive
-        cmp   brick_state[si], 1
-        jne   mb_paddleCollision        ; If 0, it's already broken
-
-        ; Mark brick as dead
-        mov   brick_state[si], 0
-
-        ; Erase brick from screen (save ball coords first)
-        push  bx               ; save new ball X
-        push  dx               ; save new ball Y
-        push  cx               ; save row/col (ch=row, cl=col)
-
-        ; X = (col * 20) + 10
-        xor   ax, ax
-        mov   al, cl
-        mov   ah, 0
-        mov   bx, 20
-        mul   bx
-        add   ax, 10
-        mov   bx, ax           ; bx = brick screen X
-
-        ; Y = (row * 11) + 48
-        xor   ax, ax
-        mov   al, ch
-        mov   ah, 0
-        mov   cx, 11
-        mul   cx
-        add   ax, 48
-        mov   dx, ax           ; dx = brick screen Y
-
-        mov   si, 18           ; Brick width
-        mov   di, 8            ; Brick height
-        mov   al, 00h          ; Background color (erase brick)
-        call  FillRect
-
-        pop   cx               ; restore row/col
-        pop   dx               ; restore new ball Y
-        pop   bx               ; restore new ball X
-
-        ; Update score and HUD
-        add   score, 5
-        call  UpdateScoreString
-        call  RefreshScoreHUD
-
-        neg   ball_dy          ; Reverse ball Y direction
-        jmp   mb_draw
-
-    mb_topWallCollision:
-        ; Original top wall collision (Y=15 is HUD boundary)
-        cmp   dx, 30           ; Adjusted for your status bar height
-        jge   mb_paddleCollision
-        neg   ball_dy
-        mov   dx, 30
-
-    mb_paddleCollision:
-        ; Paddle: only when moving down
-        cmp   ball_dy, 0
-        jl    mb_bottomCollision
-        ; ball bottom = dx+5 must reach paddle_y
-        mov   ax, dx
-        add   ax, 5
-        cmp   ax, paddle_y
-        jl    mb_bottomCollision
-        ; ball top must not be below paddle
-        cmp   dx, paddle_y
-        jg    mb_bottomCollision
-        ; horizontal overlap: ball_x in [paddle_x .. paddle_x+width)
-        mov   cx, paddle_x
-        cmp   bx, cx
-        jl    mb_bottomCollision
-        add   cx, paddle_width
-        cmp   bx, cx
-        jge   mb_bottomCollision
-        ; hit
-        neg   ball_dy
-        mov   dx, paddle_y
-        sub   dx, 6
-        jmp   mb_draw
-
-    mb_bottomCollision:
-        mov   ax, dx
-        add   ax, 5
-        cmp   ax, 199
-        jle   mb_draw ; meaning the ball is not yet lost
-
-        ; if this runs, then ball is lost        
-
-        ; decrement lives and check if remaining lives is 0, then end game
-        dec lives_count
-        call UpdateLivesDisplay
-
-        cmp lives_count, 0
-        jg mb_skip_exit
-        jmp  gs_exit ; originally it should jump to a game over screen, but that is not yet implemented, so we just exit to main menu
-
-    mb_skip_exit:
-        ; this means player still has lives left, so we reset the ball and decremenet the life count display
-        mov   ball_launched, 0
-        mov   ax, paddle_x
-        add   ax, 32
-        mov   ball_x, ax
-        mov   ball_y, 170
-        mov   ball_dx, 1
-        mov   ball_dy, -1
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 0Fh
-        call  FillRect
-        jmp   mb_done
-
-    mb_draw:
-        mov   ball_x, bx
-        mov   ball_y, dx
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 0Fh
-        call  FillRect
-
-    mb_done:
-        pop   di
-        pop   si
-        pop   dx
-        pop   cx
-        pop   bx
-        pop   ax
-        ret
-MoveBall ENDP
-
-;----------------------------------------------------------------------
-; DRAW PADDLE
-;----------------------------------------------------------------------
-DrawPaddle PROC
-    push  ax
-    push  bx
-    push  cx
-    push  dx
-    push  si
-    push  di
-
-    mov   bx, paddle_x
-    mov   dx, paddle_y
-    mov   si, paddle_width
-    mov   di, 8
-    mov   al, 0Fh                      ; White paddle
-    call  FillRect
-
-    pop   di
-    pop   si
-    pop   dx
-    pop   cx
-    pop   bx
-    pop   ax
-    ret
-DrawPaddle ENDP
-
-ClearPaddle PROC
-    push  ax
-    push  bx
-    push  cx
-    push  dx
-    push  si
-    push  di
-
-    mov   bx, paddle_x
-    mov   dx, paddle_y
-    mov   si, paddle_width
-    mov   di, 8
-    mov   al, 00h                      ; Black background
-    call  FillRect
-
-    pop   di
-    pop   si
-    pop   dx
-    pop   cx
-    pop   bx
-    pop   ax
-    ret
-ClearPaddle ENDP
-;======================================================================
-; REMAINING DRAWING UTILITIES
-;======================================================================
+; ============================================================
+; DRAW MAIN MENU STATIC
+; ============================================================
 DrawMainMenuStatic PROC
     mov   al, 00h
     call  FillScreen
@@ -988,6 +484,9 @@ DrawMainMenuStatic PROC
     ret
 DrawMainMenuStatic ENDP
 
+; ============================================================
+; DRAW ALL MENU OPTIONS
+; ============================================================
 DrawAllMenuOpts PROC
         mov   bx, 10*8
         mov   dx, 7*8
@@ -1036,6 +535,9 @@ DrawAllMenuOpts PROC
         ret
 DrawAllMenuOpts ENDP
 
+; ============================================================
+; REDRAW MENU HIGHLIGHT
+; ============================================================
 RedrawMenuHighlight PROC
         mov   bx, 10*8
         mov   ax, old_selected
@@ -1090,6 +592,9 @@ RedrawMenuHighlight PROC
         ret
 RedrawMenuHighlight ENDP
 
+; ============================================================
+; DRAW MENU TEXT AT
+; ============================================================
 DrawMenuTextAt PROC
         push  bx
         sub   bx, 12
@@ -1115,6 +620,9 @@ DrawMenuTextAt PROC
         ret
 DrawMenuTextAt ENDP
 
+; ============================================================
+; ANIMATE MENU BALL
+; ============================================================
 AnimateMenuBall PROC
         mov   bx, ball_mx
         mov   dx, ball_my
@@ -1144,6 +652,9 @@ AnimateMenuBall PROC
         ret
 AnimateMenuBall ENDP
 
+; ============================================================
+; INSTRUCTIONS SCREEN
+; ============================================================
 InstructionsScreen PROC
     ins_page1:
         mov   al, 00h
@@ -1296,10 +807,7 @@ InstructionsScreen PROC
         cmp   al, 13
         je    ins_page2
         cmp   al, 27
-        jg ins_dont_exit
-        jl ins_dont_exit
-        jmp    ins_exit
-    ins_dont_exit:
+        je    ins_exit
         jmp   ins_p1_wait
     ins_page2:
         mov   al, 00h
@@ -1467,17 +975,15 @@ InstructionsScreen PROC
         cmp   al, 27
         je    ins_exit
         cmp   al, 13
-
-        jg ins_dont_page1
-        jl ins_dont_page1
-        jmp    ins_page1
-
-    ins_dont_page1:
+        je    ins_page1
         jmp   ins_p2_wait
     ins_exit:
         ret
 InstructionsScreen ENDP
 
+; ============================================================
+; HIGH SCORE SCREEN
+; ============================================================
 HighScoreScreen PROC
     mov   al, 00h
     call  FillScreen
@@ -1588,9 +1094,670 @@ HighScoreScreen PROC
         ret
 HighScoreScreen ENDP
 
-;======================================================================
+; ============================================================
+; GAME SCREEN LAYOUT
+; ============================================================
+GameScreenLayout PROC
+    mov   paddle_x, 125
+    mov   paddle_old_x, 125
+    mov   score, 0
+    mov   lives_count, 3
+
+    mov   al, 00h
+    call  FillScreen
+
+    mov   bx, 0
+    mov   dx, 0
+    mov   si, 320
+    mov   di, 28
+    mov   al, 05h
+    call  FillRect
+
+    mov   ch, 0Fh
+    mov   bx, 1*8
+    mov   dx, 4
+    mov   si, OFFSET gs_scoreDisplayStr
+    call  DrawString
+    call  UpdateScoreString
+    call  RefreshScoreHUD
+
+    mov   ch, 0Fh
+    mov   bx, 14*8
+    mov   dx, 4
+    mov   si, OFFSET gs_livesDisplayStr
+    call  DrawString
+    call  UpdateLivesDisplay
+
+    mov   ch, 0Fh
+    mov   bx, 25*8
+    mov   dx, 4
+    mov   si, OFFSET gs_levelDisplayStr
+    call  DrawString
+
+    mov   ch, 0Fh
+    mov   bx, 20*8
+    mov   dx, 17
+    mov   si, OFFSET gs_player
+    call  DrawString
+    mov   ch, 0Fh
+    mov   bx, 28*8
+    mov   dx, 17
+    mov   si, OFFSET gs_name
+    call  DrawString
+
+    ; Draw bricks
+    mov   dx, 48
+    mov   ch, 0
+    gs_rows:
+        mov   bx, 10
+        mov   cl, 0
+    gs_cols:
+        mov   al, ch
+        add   al, cl
+        and   al, 03h
+        cmp   al, 0
+        je    gsc_mag
+        cmp   al, 1
+        je    gsc_dblue
+        cmp   al, 2
+        je    gsc_dmag
+        mov   al, 03h
+        jmp   gsc_draw
+    gsc_mag:
+        mov   al, 0Dh
+        jmp   gsc_draw
+    gsc_dblue:
+        mov   al, 01h
+        jmp   gsc_draw
+    gsc_dmag:
+        mov   al, 05h
+    gsc_draw:
+        mov   si, 18
+        mov   di, 8
+        call  FillRect
+        add   bx, 20
+        inc   cl
+        cmp   cl, 15
+        jl    gs_cols
+        add   dx, 11
+        inc   ch
+        cmp   ch, 5
+        jl    gs_rows
+
+        mov   cx, 75
+        mov   si, OFFSET brick_state
+    gs_brick_reset:
+        mov   BYTE PTR [si], 1
+        inc   si
+        loop  gs_brick_reset
+
+        mov   ax, paddle_x
+        add   ax, 32
+        mov   ball_x, ax
+        mov   ball_y, 170
+        mov   ball_dx, 1
+        mov   ball_dy, -1
+        mov   ball_launched, 0
+
+        mov   bx, ball_x
+        mov   dx, ball_y
+        mov   si, 6
+        mov   di, 6
+        mov   al, 0Fh
+        call  FillRect
+        call  DrawPaddle
+
+    gs_game_loop:
+        in    al, 60h
+        test  al, 80h
+        jnz   gs_key_up
+
+        cmp   al, 01h
+        je    gs_exit
+        cmp   al, 39h
+        je    gs_space
+        cmp   al, 4Bh
+        je    gs_do_left
+        cmp   al, 1Eh
+        je    gs_do_left
+        cmp   al, 4Dh
+        je    gs_do_right
+        cmp   al, 20h
+        je    gs_do_right
+        jmp   gs_no_move
+
+    gs_key_up:
+        jmp   gs_no_move
+
+    gs_space:
+        cmp   ball_launched, 0
+        jne   gs_no_move
+        mov   ball_launched, 1
+        jmp   gs_no_move
+
+    gs_do_left:
+        mov   bx, paddle_x
+        sub   bx, paddle_speed
+        cmp   bx, 2
+        jge   gs_apply_move
+        mov   bx, 2
+        jmp   gs_apply_move
+
+    gs_do_right:
+        mov   bx, paddle_x
+        add   bx, paddle_speed
+        mov   ax, 318
+        sub   ax, paddle_width
+        cmp   bx, ax
+        jle   gs_apply_move
+        mov   bx, ax
+
+    gs_apply_move:
+        cmp   bx, paddle_x
+        je    gs_no_move
+        call  ClearPaddle
+        cmp   ball_launched, 0
+        jne   gs_move_paddle_only
+        push  bx
+        mov   bx, ball_x
+        mov   dx, ball_y
+        mov   si, 6
+        mov   di, 6
+        mov   al, 00h
+        call  FillRect
+        pop   bx
+        mov   ax, bx
+        add   ax, 32
+        mov   ball_x, ax
+    gs_move_paddle_only:
+        mov   paddle_x, bx
+        call  DrawPaddle
+        cmp   ball_launched, 0
+        jne   gs_no_move
+        mov   bx, ball_x
+        mov   dx, ball_y
+        mov   si, 6
+        mov   di, 6
+        mov   al, 0Fh
+        call  FillRect
+
+    gs_no_move:
+        cmp   ball_launched, 0
+        je    gs_delay
+        call  MoveBall
+
+    gs_delay:
+        mov   cx, ball_speed
+    gs_delay_lp:
+        push  cx
+        mov   cx, 10000
+    gs_delay_in:
+        loop  gs_delay_in
+        pop   cx
+        loop  gs_delay_lp
+        jmp   gs_game_loop
+
+    gs_exit:
+        ret
+GameScreenLayout ENDP
+
+; ============================================================
+; MOVE BALL
+; ============================================================
+MoveBall PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+
+    mov   bx, ball_x
+    mov   dx, ball_y
+    mov   si, 6
+    mov   di, 6
+    mov   al, 00h
+    call  FillRect
+
+    mov   ax, ball_x
+    add   ax, ball_dx
+    mov   bx, ax
+    mov   ax, ball_y
+    add   ax, ball_dy
+    mov   dx, ax
+
+    cmp   bx, 2
+    jge   mb_rightCollision
+    neg   ball_dx
+    mov   bx, 2
+
+    mb_rightCollision:
+        mov   ax, bx
+        add   ax, 5
+        cmp   ax, 317
+        jle   mb_topCollision
+        neg   ball_dx
+        mov   bx, 311
+
+    mb_topCollision:
+        cmp   dx, 48
+        jge mbh_no_topWallCollision
+        jmp    mb_topWallCollision_lbl
+    mbh_no_topWallCollision:
+        cmp   dx, 103
+        jl mb_no_paddleCollision
+        jmp   mb_paddleCollision
+
+    mb_no_paddleCollision:
+        mov   ax, dx
+        sub   ax, 48
+        mov   cl, 11
+        div   cl
+        mov   ch, al
+        mov   ax, bx
+        sub   ax, 10
+        jb    mb_paddleCollision
+    mbh_no_paddleCollision:
+        mov   cl, 20
+        div   cl
+        mov   cl, al
+        cmp   cl, 15
+        jl mb_no_paddleCollision2
+        jmp   mb_paddleCollision
+    mb_no_paddleCollision2:
+        mov   al, ch
+        mov   ah, 15
+        mul   ah
+        add   al, cl
+        mov   si, ax
+        cmp   brick_state[si], 1
+        jne   mb_paddleCollision
+        mov   brick_state[si], 0
+        push  bx
+        push  dx
+        push  cx
+        xor   ax, ax
+        mov   al, cl
+        mov   ah, 0
+        mov   bx, 20
+        mul   bx
+        add   ax, 10
+        mov   bx, ax
+        xor   ax, ax
+        mov   al, ch
+        mov   ah, 0
+        mov   cx, 11
+        mul   cx
+        add   ax, 48
+        mov   dx, ax
+        mov   si, 18
+        mov   di, 8
+        mov   al, 00h
+        call  FillRect
+        pop   cx
+        pop   dx
+        pop   bx
+        add   score, 5
+        call  UpdateScoreString
+        call  RefreshScoreHUD
+        neg   ball_dy
+        jmp   mb_draw
+
+    mb_topWallCollision_lbl:
+        cmp   dx, 30
+        jge   mb_paddleCollision
+        neg   ball_dy
+        mov   dx, 30
+
+    mb_paddleCollision:
+        cmp   ball_dy, 0
+        jl    mb_bottomCollision
+        mov   ax, dx
+        add   ax, 5
+        cmp   ax, paddle_y
+        jl    mb_bottomCollision
+        cmp   dx, paddle_y
+        jg    mb_bottomCollision
+        mov   cx, paddle_x
+        cmp   bx, cx
+        jl    mb_bottomCollision
+        add   cx, paddle_width
+        cmp   bx, cx
+        jge   mb_bottomCollision
+        neg   ball_dy
+        mov   dx, paddle_y
+        sub   dx, 6
+        jmp   mb_draw
+
+    mb_bottomCollision:
+        mov   ax, dx
+        add   ax, 5
+        cmp   ax, 199
+        jle   mb_draw
+
+        dec lives_count
+        call UpdateLivesDisplay
+        cmp lives_count, 0
+        jg mb_skip_exit
+        call GameOverScreen
+        pop   di
+        pop   si
+        pop   dx
+        pop   cx
+        pop   bx
+        pop   ax
+        ret
+
+    mb_skip_exit:
+        mov   ball_launched, 0
+        mov   ax, paddle_x
+        add   ax, 32
+        mov   ball_x, ax
+        mov   ball_y, 170
+        mov   ball_dx, 1
+        mov   ball_dy, -1
+        mov   bx, ball_x
+        mov   dx, ball_y
+        mov   si, 6
+        mov   di, 6
+        mov   al, 0Fh
+        call  FillRect
+        jmp   mb_done
+
+    mb_draw:
+        mov   ball_x, bx
+        mov   ball_y, dx
+        mov   bx, ball_x
+        mov   dx, ball_y
+        mov   si, 6
+        mov   di, 6
+        mov   al, 0Fh
+        call  FillRect
+
+    mb_done:
+        pop   di
+        pop   si
+        pop   dx
+        pop   cx
+        pop   bx
+        pop   ax
+        ret
+MoveBall ENDP
+; ============================================================
+; GAME OVER SCREEN 
+; ============================================================
+GameOverScreen PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+
+    ; ---- Clear EVERYTHING first ----
+    mov   al, 00h
+    call  FillScreen
+
+    ; ---- Outer frame ----
+    mov   bx, 6
+    mov   dx, 6
+    mov   si, 308
+    mov   di, 186
+    mov   al, 05h
+    call  DrawRect
+
+    ; ---- Inner frame ----
+    mov   bx, 9
+    mov   dx, 9
+    mov   si, 302
+    mov   di, 180
+    mov   al, 01h
+    call  DrawRect
+
+    ; ---- GAME OVER text (Red, centered) ----
+    mov   ch, 0Ch
+    mov   bx, 14*8
+    mov   dx, 5*8
+    mov   al, 'G'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'A'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'M'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'E'
+    call  DrawChar
+    add   bx, 16
+    mov   al, 'O'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'V'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'E'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'R'
+    call  DrawChar
+
+    ; ---- Stats box outer ----
+    mov   bx, 36
+    mov   dx, 56
+    mov   si, 248
+    mov   di, 78
+    mov   al, 05h
+    call  DrawRect
+
+    ; ---- Stats box inner ----
+    mov   bx, 38
+    mov   dx, 58
+    mov   si, 244
+    mov   di, 74
+    mov   al, 00h
+    call  FillRect
+
+    ; ---- Final Score ----
+    mov   ch, 0Fh
+    mov   bx, 7*8
+    mov   dx, 9*8
+    mov   si, OFFSET go_score_lbl
+    call  DrawString
+    mov   ch, 0Fh
+    mov   bx, 26*8
+    mov   dx, 9*8
+    mov   si, OFFSET gs_scoreDisplayStr
+    add   si, 7
+    call  DrawString
+
+    ; ---- Level Reached ----
+    mov   ch, 0Fh
+    mov   bx, 7*8
+    mov   dx, 11*8
+    mov   si, OFFSET go_level_lbl
+    call  DrawString
+    mov   ch, 0Fh
+    mov   bx, 26*8
+    mov   dx, 11*8
+    mov   BYTE PTR [temp_str], '0'
+    mov   BYTE PTR [temp_str+1], '1'
+    mov   BYTE PTR [temp_str+2], 0
+    mov   si, OFFSET temp_str
+    call  DrawString
+
+    ; ---- Bricks Left ----
+    mov   ch, 0Fh
+    mov   bx, 7*8
+    mov   dx, 13*8
+    mov   si, OFFSET go_bricks_lbl
+    call  DrawString
+
+    push  cx
+    push  si
+    mov   cx, 75
+    mov   si, OFFSET brick_state
+    mov   bx, 0
+    go_count:
+        cmp   BYTE PTR [si], 1
+        jne   go_nc
+        inc   bx
+    go_nc:
+        inc   si
+        loop  go_count
+    mov   ax, bx
+    pop   si
+    pop   cx
+
+    push  ax
+    mov   cx, 0
+    mov   bx, 10
+    go_cvt:
+        xor   dx, dx
+        div   bx
+        push  dx
+        inc   cx
+        cmp   ax, 0
+        jne   go_cvt
+    mov   di, OFFSET temp_str
+    go_store:
+        pop   dx
+        add   dl, '0'
+        mov   [di], dl
+        inc   di
+        loop  go_store
+    mov   BYTE PTR [di], 0
+    pop   ax
+
+    mov   ch, 0Fh
+    mov   bx, 26*8
+    mov   dx, 13*8
+    mov   si, OFFSET temp_str
+    call  DrawString
+
+    ; ---- Lives Remaining ----
+    mov   ch, 0Fh
+    mov   bx, 7*8
+    mov   dx, 15*8
+    mov   si, OFFSET go_lives_lbl
+    call  DrawString
+    mov   ch, 0Fh
+    mov   bx, 26*8
+    mov   dx, 15*8
+    mov   al, BYTE PTR [lives_count]
+    add   al, '0'
+    mov   BYTE PTR [temp_str], al
+    mov   BYTE PTR [temp_str+1], 0
+    mov   si, OFFSET temp_str
+    call  DrawString
+
+    ; ---- Options ----
+    mov   ch, 05h
+    mov   bx, 8*8
+    mov   dx, 19*8
+    mov   si, OFFSET go_opt1
+    call  DrawString
+
+    mov   ch, 05h
+    mov   bx, 8*8
+    mov   dx, 21*8
+    mov   si, OFFSET go_opt2
+    call  DrawString
+
+        go_wait:
+        mov   ah, 00h
+        int   16h
+        cmp   al, 27          ; ESC - exit to menu
+        je    go_exit
+        cmp   al, 13          ; ENTER - restart game
+        je    go_restart
+        jmp   go_wait
+
+    go_restart:
+        mov   score, 0
+        mov   lives_count, 3
+        mov   cx, 75
+        mov   si, OFFSET brick_state
+    go_reset_bricks:
+        mov   BYTE PTR [si], 1
+        inc   si
+        loop  go_reset_bricks
+        call  UpdateScoreString
+        
+        ; Don't return to caller - jump back to start game fresh
+        pop   di
+        pop   si
+        pop   dx
+        pop   cx
+        pop   bx
+        pop   ax
+        
+        ; Instead of ret, call GameScreenLayout fresh
+        call  GameScreenLayout
+        ret
+
+    go_exit:
+        pop   di
+        pop   si
+        pop   dx
+        pop   cx
+        pop   bx
+        pop   ax
+        ret
+GameOverScreen ENDP
+; ============================================================
+; DRAW PADDLE
+; ============================================================
+DrawPaddle PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+    mov   bx, paddle_x
+    mov   dx, paddle_y
+    mov   si, paddle_width
+    mov   di, 8
+    mov   al, 0Fh
+    call  FillRect
+    pop   di
+    pop   si
+    pop   dx
+    pop   cx
+    pop   bx
+    pop   ax
+    ret
+DrawPaddle ENDP
+
+; ============================================================
+; CLEAR PADDLE
+; ============================================================
+ClearPaddle PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+    mov   bx, paddle_x
+    mov   dx, paddle_y
+    mov   si, paddle_width
+    mov   di, 8
+    mov   al, 00h
+    call  FillRect
+    pop   di
+    pop   si
+    pop   dx
+    pop   cx
+    pop   bx
+    pop   ax
+    ret
+ClearPaddle ENDP
+
+; ============================================================
 ; DRAWING UTILITIES
-;======================================================================
+; ============================================================
 FillScreen PROC
     push  ax
     push  cx
@@ -1811,6 +1978,8 @@ CharToIndex PROC
     jl   cti_not_ctrl
     jmp    cti_heart
     cti_not_ctrl:
+    cmp   al, 4
+    je    cti_diamond
     cmp   al, ' '
     je    cti_space
     cmp   al, '|'
@@ -1927,6 +2096,9 @@ CharToIndex PROC
     cti_heart:
         mov   ax, 45
         ret
+    cti_diamond:
+        mov   ax, 46
+        ret
 CharToIndex ENDP
 
 DrawChar PROC
@@ -2017,32 +2189,29 @@ UpdateLivesDisplay PROC
     push  bx
     push  cx
     push  dx
-
-    ; we will first clear the heart area with background color and then draw hearts on it again
     mov   bx, 20*8
     mov   dx, 4
-    mov   si, 40       ; Width to cover 5 potential hearts
-    mov   di, 8        ; Height
-    mov   al, 05h      ; Black
+    mov   si, 40
+    mov   di, 8
+    mov   al, 05h
     call  FillRect
-
-    ; drawing hearts
     mov   cx, lives_count
     cmp   cx, 0
     jle   uld_done
-
-    mov   bx, 20*8     ; reset X to start position
+    cmp   cx, 5
+    jle   uld_ok
+    mov   cx, 5
+    uld_ok:
+    mov   bx, 20*8
     mov   dx, 4
-    mov   al, 3        ; heart Icon
-
     uld_loop:
         push  cx
-        mov   ch, 0Ch      ; red, heart color
+        mov   al, 3
+        mov   ch, 0Ch
         call  DrawChar
         pop   cx
         add   bx, 8
         loop  uld_loop
-
     uld_done:
         pop   dx
         pop   cx
@@ -2051,29 +2220,22 @@ UpdateLivesDisplay PROC
         ret
 UpdateLivesDisplay ENDP
 
-
 UpdateScoreString PROC
     push  ax
     push  bx
     push  cx
     push  dx
     push  di
-
     mov   ax, score
     mov   di, OFFSET gs_scoreDisplayStr
-    add   di, 7                ; Point to the first '0' in 'SCORE: 0000'
-    
-    mov   bx, 10               ; Divisor for decimal conversion
-    
-    ; Thousands
+    add   di, 7
+    mov   bx, 10
     xor   dx, dx
     mov   cx, 1000
     div   cx
     add   al, '0'
     mov   [di], al
     inc   di
-    
-    ; Hundreds
     mov   ax, dx
     xor   dx, dx
     mov   cx, 100
@@ -2081,8 +2243,6 @@ UpdateScoreString PROC
     add   al, '0'
     mov   [di], al
     inc   di
-    
-    ; Tens
     mov   ax, dx
     xor   dx, dx
     mov   cx, 10
@@ -2090,48 +2250,37 @@ UpdateScoreString PROC
     add   al, '0'
     mov   [di], al
     inc   di
-    
-    ; Units
     add   dl, '0'
     mov   [di], dl
-
     pop   di
     pop   dx
     pop   cx
     pop   bx
     pop   ax
-
     ret
 UpdateScoreString ENDP
-
 
 RefreshScoreHUD PROC
     push ax
     push bx
     push cx
-    push dx             
-    push  es           ; Save Extra Segment
+    push dx
+    push  es
     push  ds
-    
-    mov   ax, @data    ; Ensure DS is pointing to your variables
+    mov   ax, @data
     mov   ds, ax
-    
-    ; 1. Clear Area
-    mov   ch, 05h      ; HUD Color
-    mov   bx, 1*8      ; X
-    mov   dx, 4        ; Y
-    mov   si, 88       ; Width
-    mov   di, 8        ; Height
-    mov   al, 05h      ; Color
+    mov   ch, 05h
+    mov   bx, 1*8
+    mov   dx, 4
+    mov   si, 88
+    mov   di, 8
+    mov   al, 05h
     call  FillRect
-    
-    ; 2. Draw Text
-    mov   ch, 0Fh      ; White
+    mov   ch, 0Fh
     mov   bx, 1*8
     mov   dx, 4
     mov   si, OFFSET gs_scoreDisplayStr
     call  DrawString
-    
     pop   ds
     pop   es
     pop   dx
@@ -2140,6 +2289,5 @@ RefreshScoreHUD PROC
     pop   ax
     ret
 RefreshScoreHUD ENDP
-
 
 END main
