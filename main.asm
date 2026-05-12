@@ -179,6 +179,10 @@
     go_opt2      DB         '[ ESC ]    Main Menu', 0
         ; Game state
     game_running DB         0
+    current_level DW        1
+    brick_state2  DB        90 DUP(0)
+    gs_lvlcompStr DB        'LEVEL COMPLETE!', 0
+    gs_lvl2str    DB        'LEVEL: 02', 0
     temp_str     DB         10 DUP(0)
 .CODE
 
@@ -807,7 +811,9 @@ InstructionsScreen PROC
         cmp   al, 13
         je    ins_page2
         cmp   al, 27
-        je    ins_exit
+        jne no_ins_exit
+        jmp    ins_exit
+    no_ins_exit:
         jmp   ins_p1_wait
     ins_page2:
         mov   al, 00h
@@ -975,7 +981,9 @@ InstructionsScreen PROC
         cmp   al, 27
         je    ins_exit
         cmp   al, 13
-        je    ins_page1
+        jne no_ins_page1
+        jmp    ins_page1
+    no_ins_page1:
         jmp   ins_p2_wait
     ins_exit:
         ret
@@ -1102,6 +1110,7 @@ GameScreenLayout PROC
     mov   paddle_old_x, 125
     mov   score, 0
     mov   lives_count, 3
+    mov   current_level, 1
 
     mov   al, 00h
     call  FillScreen
@@ -1213,25 +1222,33 @@ GameScreenLayout PROC
         jnz   gs_key_up
 
         cmp   al, 01h
-        je    gs_exit
-        cmp   al, 39h
-        je    gs_space
-        cmp   al, 4Bh
-        je    gs_do_left
-        cmp   al, 1Eh
-        je    gs_do_left
-        cmp   al, 4Dh
-        je    gs_do_right
-        cmp   al, 20h
-        je    gs_do_right
-        jmp   gs_no_move
+        jne no_gs_exit
+        jmp    gs_exit
+        no_gs_exit:
+            cmp   al, 39h
+            je    gs_space
+            cmp   al, 3Ch
+            jne   gs_no_f2
+            jmp   gs_skip_to_l2
+            gs_no_f2:
+            cmp   al, 4Bh
+            je    gs_do_left
+            cmp   al, 1Eh
+            je    gs_do_left
+            cmp   al, 4Dh
+            je    gs_do_right
+            cmp   al, 20h
+            je    gs_do_right
+            jmp   gs_no_move
 
     gs_key_up:
         jmp   gs_no_move
 
     gs_space:
         cmp   ball_launched, 0
-        jne   gs_no_move
+        je skip_gs_no_move
+        jmp   gs_no_move 
+        skip_gs_no_move:
         mov   ball_launched, 1
         jmp   gs_no_move
 
@@ -1269,17 +1286,27 @@ GameScreenLayout PROC
         mov   ax, bx
         add   ax, 32
         mov   ball_x, ax
+
+
     gs_move_paddle_only:
-        mov   paddle_x, bx
-        call  DrawPaddle
-        cmp   ball_launched, 0
-        jne   gs_no_move
-        mov   bx, ball_x
-        mov   dx, ball_y
-        mov   si, 6
-        mov   di, 6
-        mov   al, 0Fh
-        call  FillRect
+            mov   paddle_x, bx
+            call  DrawPaddle
+            cmp   ball_launched, 0
+            jne   gs_skip_fallthrough
+            mov   bx, ball_x
+            mov   dx, ball_y
+            mov   si, 6
+            mov   di, 6
+            mov   al, 0Fh
+            call  FillRect
+
+    gs_skip_fallthrough:           ; <--- FIX 2: Label to safely bypass F2 logic
+        jmp   gs_no_move           ; <--- FIX 3: Prevent falling into Level 2 transition
+
+    gs_skip_to_l2:
+        call  TransitionToLevel2
+        jmp   gs_no_move
+
 
     gs_no_move:
         cmp   ball_launched, 0
@@ -1340,42 +1367,87 @@ MoveBall PROC
         mov   bx, 311
 
     mb_topCollision:
+        ; Check if ball is above the brick zone top (Y < 48)
         cmp   dx, 48
-        jge mbh_no_topWallCollision
-        jmp    mb_topWallCollision_lbl
-    mbh_no_topWallCollision:
+        jge   mbh_in_or_below_bricks
+        jmp   mb_topWallCollision_lbl   ; above bricks -> top wall check
+
+    mbh_in_or_below_bricks:
+        ; Check bottom of brick zone — depends on level
+        ; Level 1: 5 rows -> bottom at Y=103. Level 2: 6 rows -> Y=114
+        cmp   current_level, 2
+        jne   mbh_lvl1_bottom
+        ; Level 2: bottom of brick zone = 114
+        cmp   dx, 114
+        jl    mb_no_paddleCollision
+        jmp   mb_paddleCollision
+    mbh_lvl1_bottom:
+        ; Level 1: bottom of brick zone = 103
         cmp   dx, 103
-        jl mb_no_paddleCollision
+        jl    mb_no_paddleCollision
         jmp   mb_paddleCollision
 
     mb_no_paddleCollision:
+        ; --- BRICK COLLISION LOGIC (works for both levels) ---
+        ; Calculate row: (ball_y - 48) / 11
         mov   ax, dx
         sub   ax, 48
         mov   cl, 11
         div   cl
-        mov   ch, al
+        mov   ch, al           ; ch = row index
+
+        ; Clamp row for safety
+        cmp   current_level, 2
+        jne   mbh_clamp_l1
+        cmp   ch, 5
+        jle   mbh_col_calc
+        jmp   mb_paddleCollision   ; row out of range for level 2
+    mbh_clamp_l1:
+        cmp   ch, 4
+        jle   mbh_col_calc
+        jmp   mb_paddleCollision   ; row out of range for level 1
+
+    mbh_col_calc:
+        ; Calculate col: (ball_x - 10) / 20
         mov   ax, bx
         sub   ax, 10
-        jb    mb_paddleCollision
+        jae mbh_no_paddleCollision
+        jmp    mb_paddleCollision   ; X < 10, no brick
     mbh_no_paddleCollision:
         mov   cl, 20
         div   cl
-        mov   cl, al
+        mov   cl, al           ; cl = col index
         cmp   cl, 15
-        jl mb_no_paddleCollision2
-        jmp   mb_paddleCollision
+        jl    mb_no_paddleCollision2
+        jmp   mb_paddleCollision   ; col out of range
     mb_no_paddleCollision2:
+
+        ; Calculate flat index: (row * 15) + col
         mov   al, ch
         mov   ah, 15
         mul   ah
         add   al, cl
-        mov   si, ax
+        mov   si, ax           ; si = index
+
+        ; Branch on level to check correct state array
+        cmp   current_level, 2
+        jne   mbh_chk_l1_state
+        ; Level 2: use brick_state2, skip gap cells (value=2)
+        cmp   brick_state2[si], 1
+        jne   mb_paddleCollision   ; 0=dead or 2=gap, bounce only if alive
+        mov   brick_state2[si], 0
+        jmp   mbh_do_erase
+    mbh_chk_l1_state:
         cmp   brick_state[si], 1
         jne   mb_paddleCollision
         mov   brick_state[si], 0
+
+    mbh_do_erase:
+        ; Erase the brick from screen
         push  bx
         push  dx
         push  cx
+        ; X = (col * 20) + 10
         xor   ax, ax
         mov   al, cl
         mov   ah, 0
@@ -1383,6 +1455,7 @@ MoveBall PROC
         mul   bx
         add   ax, 10
         mov   bx, ax
+        ; Y = (row * 11) + 48
         xor   ax, ax
         mov   al, ch
         mov   ah, 0
@@ -1401,6 +1474,7 @@ MoveBall PROC
         call  UpdateScoreString
         call  RefreshScoreHUD
         neg   ball_dy
+        call  CheckAllBricksDead
         jmp   mb_draw
 
     mb_topWallCollision_lbl:
@@ -1979,7 +2053,9 @@ CharToIndex PROC
     jmp    cti_heart
     cti_not_ctrl:
     cmp   al, 4
-    je    cti_diamond
+    jne no_cti_diamond
+    jmp    cti_diamond
+no_cti_diamond:
     cmp   al, ' '
     je    cti_space
     cmp   al, '|'
@@ -2289,5 +2365,390 @@ RefreshScoreHUD PROC
     pop   ax
     ret
 RefreshScoreHUD ENDP
+
+; ============================================================
+; CHECK ALL BRICKS DEAD — called after each brick break
+; If all bricks in current level are gone, transition to next level
+; ============================================================
+CheckAllBricksDead PROC
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    cmp current_level, 1
+    je cabd_chk_lvl1
+    cmp current_level, 2
+    je cabd_chk_lvl2
+    jmp cabd_done
+
+    cabd_chk_lvl1:
+        ; --- Level 1 check: 75 entries in brick_state ---
+        mov   cx, 75
+        mov   si, OFFSET brick_state
+        cabd_l1_loop:
+            cmp   BYTE PTR [si], 1
+            je    cabd_not_done         ; found a live brick — not done
+            inc   si
+            loop  cabd_l1_loop
+        ; all dead — transition to level 2
+        call  TransitionToLevel2
+        jmp   cabd_done
+
+    cabd_chk_lvl2:
+        ; --- Level 2 check: 90 entries in brick_state2, skip gap entries (value 2) ---
+        mov   cx, 90
+        mov   si, OFFSET brick_state2
+        cabd_l2_loop:
+            cmp   BYTE PTR [si], 1
+            je    cabd_not_done         ; found a live brick — not done
+            inc   si
+            loop  cabd_l2_loop
+        ; all cleared — show win screen (stub: just return to menu for now)
+        call  ShowWinScreen
+        jmp   cabd_done
+
+    cabd_not_done:
+    cabd_done:
+        pop di 
+        pop si
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        ret
+CheckAllBricksDead ENDP
+
+; ============================================================
+; TRANSITION TO LEVEL 2
+; Shows brief "Level Complete" message then loads level 2
+; ============================================================
+TransitionToLevel2 PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+
+    ; --- Flash "LEVEL COMPLETE!" for ~1.5 seconds ---
+    ; Draw a banner box in the middle of screen
+    mov   bx, 60
+    mov   dx, 85
+    mov   si, 200
+    mov   di, 30
+    mov   al, 01h
+    call  FillRect
+
+    mov   bx, 62
+    mov   dx, 87
+    mov   si, 196
+    mov   di, 26
+    mov   al, 05h
+    call  FillRect
+
+    mov   ch, 0Eh              ; Yellow text
+    mov   bx, 8*8
+    mov   dx, 97
+    mov   si, OFFSET gs_lvlcompStr
+    call  DrawString
+
+    ; Delay (~1.5 sec)
+    mov   cx, 800
+ttl2_delay:
+    push  cx
+    call  MediumDelay
+    pop   cx
+    loop  ttl2_delay
+
+    ; --- Clear play field (Y 28 to 199) ---
+    mov   bx, 0
+    mov   dx, 28
+    mov   si, 320
+    mov   di, 172
+    mov   al, 00h
+    call  FillRect
+
+    ; ERASE OLD BALL
+    mov   bx, ball_x
+    mov   dx, ball_y
+    mov   si, 6
+    mov   di, 6
+    mov   al, 00h       ; Black color
+    call  FillRect      ; Clean the pixels
+
+    ; --- Set level to 2 ---
+    mov   current_level, 2
+
+    ; --- Update LEVEL display in HUD ---
+    ; Clear old level text area then draw new
+    mov   bx, 25*8
+    mov   dx, 4
+    mov   si, 72
+    mov   di, 8
+    mov   al, 05h
+    call  FillRect
+
+    mov   ch, 0Fh
+    mov   bx, 25*8
+    mov   dx, 4
+    mov   si, OFFSET gs_lvl2str
+    call  DrawString
+
+    ; --- Draw Level 2 bricks ---
+    call  DrawLevel2Bricks
+
+    ; --- Reset ball and paddle ---
+    mov   paddle_x, 125
+    mov   paddle_old_x, 125
+    call  ClearPaddle
+    call  DrawPaddle
+
+    mov   ax, paddle_x
+    add   ax, 32
+    mov   ball_x, ax
+    mov   ball_y, 170
+    mov   ball_dx, 1
+    mov   ball_dy, -1
+    mov   ball_launched, 0
+
+    ; Draw ball at start position
+    mov   bx, ball_x
+    mov   dx, ball_y
+    mov   si, 6
+    mov   di, 6
+    mov   al, 0Fh
+    call  FillRect
+
+    pop   di
+    pop   si
+    pop   dx
+    pop   cx
+    pop   bx
+    pop   ax
+    ret
+TransitionToLevel2 ENDP
+
+; ============================================================
+; DRAW LEVEL 2 BRICKS — Tunnel Layout
+; 6 rows, 15 cols, cols 6-8 empty (the tunnel gap)
+; Rows Y: 48, 59, 70, 81, 92, 103  (step 11, height 8)
+; Cols X: 10 + col*20              (step 20, width 18)
+; Colors alternate teal(03h)/purple(0Dh) per row
+; ============================================================
+DrawLevel2Bricks PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+
+    ; Initialize brick_state2:
+    ; cols 0-5 and 9-14 = 1 (alive)
+    ; cols 6-8           = 2 (permanent gap, never alive)
+    mov   si, OFFSET brick_state2
+    mov   ch, 0           ; row counter (0-5)
+
+dl2_init_row:
+    mov   cl, 0           ; col counter (0-14)
+dl2_init_col:
+    cmp   cl, 6
+    jl    dl2_set_alive
+    cmp   cl, 8
+    jg    dl2_set_alive
+    ; col 6-8: gap
+    mov   BYTE PTR [si], 2
+    jmp   dl2_init_next
+dl2_set_alive:
+    mov   BYTE PTR [si], 1
+dl2_init_next:
+    inc   si
+    inc   cl
+    cmp   cl, 15
+    jl    dl2_init_col
+    inc   ch
+    cmp   ch, 6
+    jl    dl2_init_row
+
+    ; Now draw the bricks on screen
+    ; Row loop: ch = row (0-5), dx = Y start
+    mov   dx, 48
+    mov   ch, 0
+
+dl2_row:
+    ; Pick row color: even rows = 03h (teal/cyan), odd rows = 0Dh (magenta)
+    mov   al, ch
+    and   al, 01h
+    cmp   al, 0
+    je    dl2_even_row
+    ; odd row color
+    mov   al, 0Dh          ; magenta/purple
+    jmp   dl2_col_start
+dl2_even_row:
+    mov   al, 03h          ; cyan/teal
+dl2_col_start:
+    push  ax               ; save row color in al
+
+    mov   bx, 10           ; X start
+    mov   cl, 0            ; col counter
+
+dl2_col:
+    ; skip cols 6-8 (tunnel gap)
+    cmp   cl, 6
+    jl    dl2_draw_brick
+    cmp   cl, 8
+    jg    dl2_draw_brick
+    ; it's a gap col — paint black to ensure clean gap
+    push  ax
+    mov   si, 18
+    mov   di, 8
+    mov   al, 00h
+    call  FillRect
+    pop   ax
+    jmp   dl2_next_col
+
+dl2_draw_brick:
+    push  ax               ; save color
+    mov   si, 18
+    mov   di, 8
+    call  FillRect
+    pop   ax
+
+dl2_next_col:
+    add   bx, 20
+    inc   cl
+    cmp   cl, 15
+    jl    dl2_col
+
+    pop   ax               ; restore row color (not needed further but keep stack balanced)
+    add   dx, 11
+    inc   ch
+    cmp   ch, 6
+    jl    dl2_row
+
+    pop   di
+    pop   si
+    pop   dx
+    pop   cx
+    pop   bx
+    pop   ax
+    ret
+DrawLevel2Bricks ENDP
+
+; ============================================================
+; WIN SCREEN — shown after clearing level 2
+; ============================================================
+ShowWinScreen PROC
+    push  ax
+    push  bx
+    push  cx
+    push  dx
+    push  si
+    push  di
+
+    mov   al, 00h
+    call  FillScreen
+
+    ; Outer frame
+    mov   bx, 6
+    mov   dx, 6
+    mov   si, 308
+    mov   di, 186
+    mov   al, 0Ah          ; Green frame
+    call  DrawRect
+
+    mov   bx, 9
+    mov   dx, 9
+    mov   si, 302
+    mov   di, 180
+    mov   al, 02h
+    call  DrawRect
+
+    ; "YOU WIN!" text — draw each char with spacing
+    mov   ch, 0Ah          ; bright green
+    mov   bx, 11*8
+    mov   dx, 5*8
+    mov   al, 'Y'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'O'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'U'
+    call  DrawChar
+    add   bx, 18
+    mov   al, 'W'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'I'
+    call  DrawChar
+    add   bx, 10
+    mov   al, 'N'
+    call  DrawChar
+    add   bx, 10
+    mov   al, '!'
+    call  DrawChar
+
+    ; Final score line
+    mov   ch, 0Fh
+    mov   bx, 7*8
+    mov   dx, 10*8
+    mov   si, OFFSET go_score_lbl
+    call  DrawString
+    call  UpdateScoreString
+    mov   ch, 0Eh
+    mov   bx, 23*8
+    mov   dx, 10*8
+    mov   si, OFFSET gs_scoreDisplayStr
+    add   si, 7           ; point to digit part
+    call  DrawString
+
+    ; Options
+    mov   ch, 0Fh
+    mov   bx, 7*8
+    mov   dx, 14*8
+    mov   si, OFFSET go_opt1
+    call  DrawString
+    mov   ch, 07h
+    mov   bx, 7*8
+    mov   dx, 16*8
+    mov   si, OFFSET go_opt2
+    call  DrawString
+
+sws_wait:
+    mov   ah, 00h
+    int   16h
+    cmp   al, 27           ; ESC = return to menu (caller handles)
+    je    sws_done
+    cmp   al, 13           ; ENTER = restart
+    jne   sws_wait_again
+    ; restart: reinit game
+    pop   di
+    pop   si
+    pop   dx
+    pop   cx
+    pop   bx
+    pop   ax
+    ; signal restart by jumping into GameScreenLayout
+    ; We do this by calling it — the call stack unwinds correctly
+    ; because CheckAllBricksDead -> TransitionToLevel2... 
+    ; actually we just ret and let GameOverScreen/caller decide.
+    ; Simplest safe approach: treat ENTER same as ESC here.
+    ret 
+sws_wait_again:
+    jmp   sws_wait
+sws_done:
+    pop   di
+    pop   si
+    pop   dx
+    pop   cx
+    pop   bx
+    pop   ax
+    ret
+ShowWinScreen ENDP
+
 
 END main
